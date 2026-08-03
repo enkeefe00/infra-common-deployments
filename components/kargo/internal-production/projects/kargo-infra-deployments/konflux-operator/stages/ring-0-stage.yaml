@@ -4,7 +4,7 @@ kind: Stage
 metadata:
   name: ring-0-konflux-operator
   annotations:
-    kargo.akuity.io/color: green
+    kargo.akuity.io/color: cyan
 spec:
   requestedFreight:
     - origin:
@@ -19,6 +19,10 @@ spec:
           value: https://github.com/redhat-appstudio/infra-deployments.git
         - name: component
           value: ${{ ctx.targetFreight.origin.name }}
+        - name: srcPath
+          value: ./src
+        - name: targetRing
+          value: ring-0
       steps:
         - uses: git-clone
           as: clone
@@ -26,31 +30,31 @@ spec:
             repoURL: ${{ vars.repoURL }}
             checkout:
               - branch: main
-                path: ./src
+                path: ${{ vars.srcPath }}
         - task:
             name: konflux-operator-promote-ring-0
-          as: konflux-operator-promote
+          as: promote-konflux-operator
           vars:
             - name: srcPath
-              value: ./src
+              value: ${{ vars.srcPath }}
         - uses: git-commit
           as: commit
           config:
-            path: ./src
+            path: ${{ vars.srcPath }}
             message: |
               chore(${{ ctx.stage }}): promote ${{ vars.component }}
         - uses: git-push
           as: push
           config:
-            path: ./src
-            targetBranch: ${{ ctx.project }}/${{ vars.component }}/ring-0
+            path: ${{ vars.srcPath }}
+            targetBranch: ${{ ctx.project }}/${{ vars.component }}/${{ vars.targetRing }}
             force: true
         - uses: git-open-pr
           as: open-pr
           continueOnError: true
           config:
             repoURL: ${{ vars.repoURL }}
-            sourceBranch: ${{ ctx.project }}/${{ vars.component }}/ring-0
+            sourceBranch: ${{ ctx.project }}/${{ vars.component }}/${{ vars.targetRing }}
             targetBranch: main
             title: "chore(${{ ctx.stage }}): promote ${{ vars.component }}"
             description: |
@@ -65,15 +69,15 @@ spec:
 
               ---
 
-              ${{ (outputs[vars.component + '-promote.pr-meta']?.details) ?? ('Promotes `' + vars.component + '` to **' + ctx.stage + '**.') }}
+              ${{ (outputs'promote' + vars.component + '.pr-meta']?.details) ?? ('Promotes `' + vars.component + '` to **' + ctx.stage + '**.') }}
 
               ---
 
-              Auto-merged after CI passes. No manual approval required for Ring 0.
+              Auto-merged after CI passes. No manual approval required for ${{ vars.targetRing }}.
 
               > Branch is force-pushed each promotion cycle. Do not commit directly.
             labels:
-              - ring-0
+              - ${{ vars.targetRing }}
               - automated-promotion
               - component/${{ vars.component }}
         - task:
@@ -91,7 +95,7 @@ spec:
             errorThreshold: 10
           config:
             method: GET
-            url: https://api.github.com/repos/redhat-appstudio/infra-deployments/pulls?head=redhat-appstudio:${{ ctx.project }}/${{ vars.component }}/ring-0&state=open
+            url: https://api.github.com/repos/redhat-appstudio/infra-deployments/pulls?head=redhat-appstudio:${{ ctx.project }}/${{ vars.component }}/${{ vars.targetRing }}&state=open
             headers:
               - name: Authorization
                 value: Bearer ${{ secret('kargo-infra-deployments-secrets').github_pat }}

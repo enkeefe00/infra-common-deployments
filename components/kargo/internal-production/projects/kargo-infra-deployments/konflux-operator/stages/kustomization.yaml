@@ -1,7 +1,5 @@
----
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - warehouse.yaml
-  - promotiontasks
-  - stages
+  - ring-0-stage.yaml
+  - ring-1-stage.yaml
